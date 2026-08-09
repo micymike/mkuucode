@@ -1,0 +1,12 @@
+node_modules/**
+src/**
+build.js
+tsconfig.json
+.yarnrc
+.vscode/**
+.gitignore
+package-lock.json
+dist/extension.js.map
+**/*.map
+webpack.config.js
+esbuild.config.js

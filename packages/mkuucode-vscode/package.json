@@ -1,0 +1,86 @@
+{
+  "name": "mkuucode-vscode",
+  "displayName": "MkuuCode",
+  "description": "VS Code integration for MkuuCode built on OpenCode agent engine.",
+  "version": "0.1.0",
+  "publisher": "mkuucode",
+  "type": "module",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anomalyco/opencode"
+  },
+  "repositoryName": "opencode-dev",
+  "homepage": "https://github.com/anomalyco/opencode",
+  "qna": "markdown",
+  "contributes": {
+    "commands": [
+      {
+        "command": "mkuucode.open",
+        "title": "MkuuCode: Open"
+      },
+      {
+        "command": "mkuucode.plan",
+        "title": "MkuuCode: /plan"
+      },
+      {
+        "command": "mkuucode.review",
+        "title": "MkuuCode: /review"
+      },
+      {
+        "command": "mkuucode.test",
+        "title": "MkuuCode: /test"
+      },
+      {
+        "command": "mkuucode.explain",
+        "title": "MkuuCode: /explain"
+      },
+      {
+        "command": "mkuucode.fix",
+        "title": "MkuuCode: /fix"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "mkuucode-sidebar",
+          "title": "MkuuCode",
+          "icon": "resources/icon.png"
+        }
+      ]
+    },
+    "views": {
+      "mkuucode-sidebar": [
+        {
+          "type": "webview",
+          "id": "mkuucode.chatView",
+          "name": "MkuuCode Chat"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node build.js",
+    "watch": "node build.js --watch",
+    "typecheck": "tsc --noEmit",
+    "tsc": "node build.js",
+    "package": "node release.mjs"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@opencode-ai/sdk": "workspace:*",
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.0.0"
+  }
+}
