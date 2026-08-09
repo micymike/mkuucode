@@ -119,10 +119,17 @@ class MkuuCodeChatProvider implements vscode.WebviewViewProvider {
   private html(webview: vscode.Webview): string {
     const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "dist", "media", "main.js"))
     const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "dist", "media", "main.css"))
+    const csp = `
+      default-src 'none';
+      script-src ${webview.cspSource};
+      style-src ${webview.cspSource} 'unsafe-inline';
+      img-src ${webview.cspSource} https: data:;
+    `
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="${csp}">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link href="${styleUri}" rel="stylesheet">
 <title>MkuuCode</title>
