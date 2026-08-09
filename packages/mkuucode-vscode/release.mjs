@@ -14,7 +14,7 @@ const root = dirname(fileURLToPath(import.meta.url))
 const vsce = resolve(require.resolve("@vscode/vsce/package.json"), "..", "vsce")
 const version = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version
 
-const files = ["package.json", "README.md", "LICENSE", "dist/", "resources/"]
+const files = ["package.json", "README.md", "LICENSE", ".vscodeignore", "dist/", "resources/"]
 
 try {
   execFileSync(process.execPath, [join(root, "build.js")], { cwd: root, stdio: "inherit" })

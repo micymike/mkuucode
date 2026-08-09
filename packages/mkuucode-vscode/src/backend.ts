@@ -1,6 +1,10 @@
-import { spawn, type ChildProcess } from "node:child_process"
-import { createOpencodeClient, type OpencodeClient, type Part } from "@opencode-ai/sdk/client"
-import { AGENT_ID, mkuucodeConfig } from "./mkuucode.js"
+import type { ChildProcess } from "node:child_process"
+import type { OpencodeClient, Part } from "@opencode-ai/sdk/client"
+
+import { AGENT_ID } from "./mkuucode.js"
+import { createClient } from "./opencode-client.js"
+import { startOpenCodeServer, stopOpenCodeServer } from "./opencode-process.js"
+import { SessionManager } from "./session-manager.js"
 
 export interface PromptResult {
   reply: string
@@ -12,52 +16,47 @@ export class MkuuCodeBackend {
   private client?: OpencodeClient
   private directory: string
   private ready: Promise<void> | undefined
-  private sessionID?: string
+  private sessionManager = new SessionManager()
+  private sendQueue: Promise<void> = Promise.resolve()
 
   constructor(directory: string) {
     this.directory = directory
   }
 
   dispose(): void {
-    if (this.proc && !this.proc.killed) this.proc.kill()
+    stopOpenCodeServer(this.proc)
     this.proc = undefined
     this.client = undefined
     this.ready = undefined
-    this.sessionID = undefined
+    this.sessionManager.reset()
   }
 
   async send(raw: string): Promise<PromptResult> {
-    await this.ensureStarted()
-    const client = this.client
-    if (!client) throw new Error("MkuuCode backend not connected")
+    const run = async () => {
+      await this.ensureStarted()
+      const client = this.client
+      if (!client) throw new Error("MkuuCode backend not connected")
 
-    await this.ensureSession(client)
-    if (!this.sessionID) throw new Error("MkuuCode session was not initialized")
+      const sessionID = await this.sessionManager.getOrCreate(client, this.directory)
+      const prompt = await client.session.prompt({
+        path: { id: sessionID },
+        query: { directory: this.directory },
+        body: {
+          agent: AGENT_ID,
+          parts: [{ type: "text", text: raw }],
+        },
+      })
 
-    const prompt = await client.session.prompt({
-      path: { id: this.sessionID },
-      query: { directory: this.directory },
-      body: {
-        agent: AGENT_ID,
-        parts: [{ type: "text", text: raw }],
-      },
-    })
-    if (prompt.error || !prompt.data) throw new Error(errorText(prompt.error))
+      if (prompt.error || !prompt.data) throw new Error(errorText(prompt.error))
 
-    const parts: Part[] = (prompt.data as { parts: Part[] }).parts
-    return { reply: collectText(parts), activity: collectActivity(parts) }
-  }
+      const parts: Part[] = (prompt.data as { parts: Part[] }).parts
+      return { reply: collectText(parts), activity: collectActivity(parts) }
+    }
 
-  private async ensureSession(client: OpencodeClient): Promise<void> {
-    if (this.sessionID) return
-
-    const created = await client.session.create({
-      query: { directory: this.directory },
-    })
-    if (created.error || !created.data) throw new Error(errorText(created.error))
-
-    const sessionID = (created.data as { id: string }).id
-    this.sessionID = sessionID
+    const previous = this.sendQueue
+    const next = previous.then(run)
+    this.sendQueue = next.then(() => undefined, () => undefined)
+    return await next
   }
 
   private ensureStarted(): Promise<void> {
@@ -72,12 +71,9 @@ export class MkuuCodeBackend {
   }
 
   private async bootstrap(): Promise<void> {
-    const { port, proc } = await spawnServer()
+    const { port, proc } = await startOpenCodeServer(this.directory)
     this.proc = proc
-    this.client = createOpencodeClient({
-      baseUrl: `http://127.0.0.1:${port}`,
-      directory: this.directory,
-    })
+    this.client = createClient(`http://127.0.0.1:${port}`, this.directory)
   }
 }
 
@@ -107,41 +103,4 @@ function errorText(err: unknown): string {
     if (anyErr.name) return anyErr.name
   }
   return String(err)
-}
-
-async function spawnServer(): Promise<{ port: number; proc: ChildProcess }> {
-  const net = await import("node:net")
-  const port = await new Promise<number>((resolve) => {
-    const srv = net.createServer()
-    srv.listen(0, "127.0.0.1", () => {
-      const addr = srv.address() as { port: number }
-      srv.close(() => resolve(addr.port))
-    })
-  })
-
-  const proc = spawn("opencode", ["serve", "--hostname=127.0.0.1", `--port=${port}`], {
-    env: {
-      ...process.env,
-      OPENCODE_CONFIG_CONTENT: JSON.stringify(mkuucodeConfig()),
-    },
-    stdio: ["ignore", "pipe", "pipe"],
-  })
-
-  await waitForHealthy(`http://127.0.0.1:${port}`, proc)
-  return { port, proc }
-}
-
-async function waitForHealthy(url: string, proc: ChildProcess): Promise<void> {
-  const deadline = Date.now() + 15000
-  for (;;) {
-    if (proc.exitCode !== null) throw new Error(`opencode server exited early with code ${proc.exitCode}`)
-    try {
-      const res = await fetch(`${url}/config`)
-      if (res.ok) return
-    } catch {
-      // not up yet
-    }
-    if (Date.now() > deadline) throw new Error("Timed out waiting for OpenCode server")
-    await new Promise((r) => setTimeout(r, 200))
-  }
 }

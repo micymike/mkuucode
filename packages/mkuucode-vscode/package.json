@@ -4,14 +4,24 @@
   "description": "VS Code integration for MkuuCode built on OpenCode agent engine.",
   "version": "0.1.0",
   "publisher": "mkuucode",
+  "icon": "resources/icon.png",
   "type": "module",
   "engines": {
     "vscode": "^1.80.0"
   },
   "categories": [
+    "AI",
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onView:mkuucode.chatView",
+    "onCommand:mkuucode.open",
+    "onCommand:mkuucode.plan",
+    "onCommand:mkuucode.review",
+    "onCommand:mkuucode.test",
+    "onCommand:mkuucode.explain",
+    "onCommand:mkuucode.fix"
+  ],
   "main": "./dist/extension.js",
   "license": "MIT",
   "repository": {
@@ -21,6 +31,13 @@
   "repositoryName": "opencode-dev",
   "homepage": "https://github.com/anomalyco/opencode",
   "qna": "markdown",
+  "files": [
+    "dist/**",
+    "resources/**",
+    "LICENSE",
+    "README.md",
+    "package.json"
+  ],
   "contributes": {
     "commands": [
       {
