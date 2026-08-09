@@ -1,14 +1,14 @@
 // MkuuCode webview client
 const vscode = acquireVsCodeApi()
 
-const chatDiv = document.getElementById("chat")!
-const promptArea = document.getElementById("prompt") as HTMLTextAreaElement
-const sendBtn = document.getElementById("send-btn") as HTMLButtonElement
-const statusDiv = document.getElementById("status")!
+const chatDiv = document.getElementById("chat")
+const promptArea = document.getElementById("prompt")
+const sendBtn = document.getElementById("send-btn")
+const statusDiv = document.getElementById("status")
 
 vscode.postMessage({ type: "ready" })
 
-function postPrompt(text: string) {
+function postPrompt(text) {
   if (!text) return
   vscode.postMessage({ type: "sendPrompt", text })
   promptArea.value = ""
