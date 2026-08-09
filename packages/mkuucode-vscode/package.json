@@ -3,7 +3,7 @@
   "displayName": "MkuuCode",
   "description": "VS Code integration for MkuuCode built on OpenCode agent engine.",
   "version": "0.1.0",
-  "publisher": "mkuucode",
+  "publisher": "MichaelMoses",
   "icon": "resources/icon.png",
   "type": "module",
   "engines": {
