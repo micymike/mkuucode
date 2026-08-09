@@ -11,7 +11,7 @@ let backend: MkuuCodeBackend | undefined
 let chatHistory: ChatMessage[] = []
 
 export function activate(context: vscode.ExtensionContext): void {
-  const provider = new MkuuCodeChatProvider(context.extensionUri)
+  const provider = new MkuuCodeChatProvider(context.extensionUri, context.globalStorageUri.fsPath)
 
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider("mkuucode.chatView", provider, {
@@ -48,7 +48,10 @@ function directoryForWorkspace(): string {
 class MkuuCodeChatProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView
 
-  constructor(private readonly extensionUri: vscode.Uri) {}
+  constructor(
+    private readonly extensionUri: vscode.Uri,
+    private readonly storageDir: string,
+  ) {}
 
   resolveWebviewView(
     webviewView: vscode.WebviewView,
@@ -90,7 +93,9 @@ class MkuuCodeChatProvider implements vscode.WebviewViewProvider {
 
     try {
       if (!backend) {
-        backend = new MkuuCodeBackend(directoryForWorkspace())
+        backend = new MkuuCodeBackend(directoryForWorkspace(), this.storageDir, (status) => {
+          view.webview.postMessage({ type: "addActivity", content: status })
+        })
       }
       const { reply, activity } = await backend.send(rendered)
 

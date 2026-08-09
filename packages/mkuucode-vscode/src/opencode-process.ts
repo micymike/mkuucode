@@ -1,14 +1,19 @@
 import { spawn, type ChildProcess } from "node:child_process"
 
 import { mkuucodeConfig } from "./mkuucode.js"
+import { resolveOpenCodeBinary } from "./opencode-binary.js"
 
 export interface OpenCodeServerProcess {
   port: number
   proc: ChildProcess
 }
 
-export async function startOpenCodeServer(directory: string): Promise<OpenCodeServerProcess> {
-  const binary = await resolveOpenCodeBinary()
+export async function startOpenCodeServer(
+  directory: string,
+  storeDir: string,
+  onStatus?: (status: string) => void,
+): Promise<OpenCodeServerProcess> {
+  const binary = await resolveOpenCodeBinary(storeDir, onStatus)
   const net = await import("node:net")
 
   const port = await new Promise<number>((resolve) => {
@@ -34,13 +39,6 @@ export async function startOpenCodeServer(directory: string): Promise<OpenCodeSe
 
 export function stopOpenCodeServer(proc: ChildProcess | undefined): void {
   if (proc && !proc.killed) proc.kill()
-}
-
-async function resolveOpenCodeBinary(): Promise<string> {
-  const configured = process.env.OPENCODE_BINARY
-  if (configured && configured.trim()) return configured.trim()
-
-  return "opencode"
 }
 
 async function waitForHealthy(url: string, proc: ChildProcess): Promise<void> {

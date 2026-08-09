@@ -26,18 +26,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/anomalyco/opencode"
+    "url": "https://github.com/micymike/mkuucode"
   },
-  "repositoryName": "opencode-dev",
-  "homepage": "https://github.com/anomalyco/opencode",
+  "repositoryName": "mkuucode",
+  "homepage": "https://github.com/micymike/mkuucode",
   "qna": "markdown",
-  "files": [
-    "dist/**",
-    "resources/**",
-    "LICENSE",
-    "README.md",
-    "package.json"
-  ],
   "contributes": {
     "commands": [
       {

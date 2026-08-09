@@ -15,12 +15,14 @@ export class MkuuCodeBackend {
   private proc?: ChildProcess
   private client?: OpencodeClient
   private directory: string
+  private storeDir: string
   private ready: Promise<void> | undefined
   private sessionManager = new SessionManager()
   private sendQueue: Promise<void> = Promise.resolve()
 
-  constructor(directory: string) {
+  constructor(directory: string, storeDir: string, private readonly onStatus?: (status: string) => void) {
     this.directory = directory
+    this.storeDir = storeDir
   }
 
   dispose(): void {
@@ -71,7 +73,7 @@ export class MkuuCodeBackend {
   }
 
   private async bootstrap(): Promise<void> {
-    const { port, proc } = await startOpenCodeServer(this.directory)
+    const { port, proc } = await startOpenCodeServer(this.directory, this.storeDir, this.onStatus)
     this.proc = proc
     this.client = createClient(`http://127.0.0.1:${port}`, this.directory)
   }
