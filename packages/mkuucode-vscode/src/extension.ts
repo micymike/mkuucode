@@ -48,6 +48,7 @@ function directoryForWorkspace(): string {
 
 class MkuuCodeChatProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView
+  private stopped = false
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -68,11 +69,27 @@ class MkuuCodeChatProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.html = this.html(webviewView.webview)
 
+    this.postTheme(webviewView.webview)
+    const themeListener = vscode.window.onDidChangeActiveColorTheme(() => this.postTheme(webviewView.webview))
+    webviewView.onDidDispose(() => themeListener.dispose())
+
     webviewView.webview.onDidReceiveMessage((data) => {
       log.appendLine(`webview message: ${JSON.stringify(data)}`)
       switch (data.type) {
         case "sendPrompt": {
           void this.handlePrompt(data.text as string)
+          break
+        }
+        case "stop": {
+          this.handleStop(data as { text?: string; thinking?: string })
+          break
+        }
+        case "copy": {
+          void vscode.env.clipboard.writeText(String(data.text ?? ""))
+          break
+        }
+        case "newSession": {
+          this.handleNewSession()
           break
         }
         case "ready": {
@@ -91,6 +108,7 @@ class MkuuCodeChatProvider implements vscode.WebviewViewProvider {
     const view = this.view
     if (!view) return
 
+    this.stopped = false
     const rendered = commandify(raw)
 
     chatHistory.push({ role: "user", content: raw })
@@ -104,7 +122,7 @@ class MkuuCodeChatProvider implements vscode.WebviewViewProvider {
           directoryForWorkspace(),
           this.storageDir,
           (status) => {
-            view.webview.postMessage({ type: "addActivity", content: status })
+            view.webview.postMessage({ type: "status", text: status })
           },
           (event) => {
             if (event.type === "thinking" || event.type === "text") streamed = true
@@ -114,6 +132,7 @@ class MkuuCodeChatProvider implements vscode.WebviewViewProvider {
       }
       const { reply, activity } = await backend.send(rendered)
 
+      if (this.stopped) return
       if (streamed) {
         // The streamed bubble already shows thinking, text, and tool activity.
         view.webview.postMessage({ type: "stream", data: { type: "done" } })
@@ -125,6 +144,7 @@ class MkuuCodeChatProvider implements vscode.WebviewViewProvider {
       }
       chatHistory.push({ role: "assistant", content: reply })
     } catch (error) {
+      if (this.stopped) return
       const reason = error instanceof Error ? error.message : String(error)
       view.webview.postMessage({
         type: "addMessage",
@@ -134,6 +154,35 @@ class MkuuCodeChatProvider implements vscode.WebviewViewProvider {
     } finally {
       view.webview.postMessage({ type: "setLoading", value: false })
     }
+  }
+
+  private handleStop(flushed: { text?: string; thinking?: string }): void {
+    const view = this.view
+    if (!view) return
+
+    this.stopped = true
+    backend?.stop()
+
+    const text = flushed.text?.trim()
+    // The webview commits the flushed stream bubble itself on "done", so only
+    // persist to history without re-posting the reply (avoids duplication).
+    chatHistory.push({ role: "assistant", content: text || "*(generation stopped)*" })
+    view.webview.postMessage({ type: "stream", data: { type: "done" } })
+    view.webview.postMessage({ type: "setLoading", value: false })
+  }
+
+  private handleNewSession(): void {
+    const view = this.view
+    if (!view) return
+
+    backend?.resetSession()
+    chatHistory = []
+    view.webview.postMessage({ type: "clear" })
+  }
+
+  private postTheme(webview: vscode.Webview): void {
+    const kind = vscode.window.activeColorTheme.kind
+    webview.postMessage({ type: "theme", kind: kind === vscode.ColorThemeKind.Dark ? "dark" : "light" })
   }
 
   private html(webview: vscode.Webview): string {

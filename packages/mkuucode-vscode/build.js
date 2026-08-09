@@ -28,6 +28,7 @@ const webviewOptions = {
   platform: "browser",
   target: ["chrome108", "firefox102", "safari16"],
   sourcemap: true,
+  minify: true,
   logLevel: "info",
   define: { "process.env.NODE_ENV": JSON.stringify("production") },
 }
