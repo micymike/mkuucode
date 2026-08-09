@@ -125,6 +125,8 @@ class MkuuCodeChatProvider implements vscode.WebviewViewProvider {
   private html(webview: vscode.Webview): string {
     const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "dist", "media", "main.js"))
     const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "dist", "media", "main.css"))
+    log.appendLine(`scriptUri=${scriptUri.toString()}`)
+    log.appendLine(`cspSource=${webview.cspSource}`)
     const csp = `
       default-src 'none';
       script-src ${webview.cspSource};
