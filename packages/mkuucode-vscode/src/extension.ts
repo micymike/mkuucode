@@ -137,7 +137,7 @@ class MkuuCodeChatProvider implements vscode.WebviewViewProvider {
   }
 
   private html(webview: vscode.Webview): string {
-    const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "dist", "media", "main.js"))
+    const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "dist", "media", "webview.js"))
     const styleUri = webview.asWebviewUri(vscode.Uri.joinPath(this.extensionUri, "dist", "media", "main.css"))
     log.appendLine(`scriptUri=${scriptUri.toString()}`)
     log.appendLine(`cspSource=${webview.cspSource}`)
@@ -157,12 +157,7 @@ class MkuuCodeChatProvider implements vscode.WebviewViewProvider {
 <title>MkuuCode</title>
 </head>
 <body>
-  <div id="status" class="status">Idle</div>
-  <div id="chat" class="chat"></div>
-  <div class="input-container">
-    <textarea id="prompt" class="prompt" placeholder="Ask MkuuCode…  ( /plan /review /test /explain /fix )"></textarea>
-    <button id="send-btn" class="send">Send</button>
-  </div>
+  <div id="root"></div>
   <script src="${scriptUri}"></script>
 </body>
 </html>`

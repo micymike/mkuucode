@@ -84,13 +84,19 @@
     "tsc": "node build.js",
     "package": "node release.mjs"
   },
-  "dependencies": {},
+"dependencies": {},
   "devDependencies": {
     "@opencode-ai/sdk": "workspace:*",
     "@types/node": "^20.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "@types/vscode": "^1.80.0",
     "@vscode/vsce": "^3.0.0",
     "esbuild": "^0.24.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^10.0.0",
+    "remark-gfm": "^4.0.0",
     "typescript": "^5.0.0"
   }
 }

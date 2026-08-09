@@ -1,14 +1,23 @@
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
 body {
   font-family: var(--vscode-font-family);
   font-size: var(--vscode-font-size);
   color: var(--vscode-editor-foreground);
   background-color: var(--vscode-sideBar-background);
   padding: 10px;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .status {
@@ -47,6 +56,10 @@ body {
   align-self: flex-start;
 }
 
+.message.assistant .message-content {
+  white-space: pre-wrap;
+}
+
 .activity {
   font-size: 0.75em;
   color: var(--vscode-charts-blue);
@@ -66,9 +79,84 @@ body {
   border-radius: 3px;
 }
 
+.markdown {
+  white-space: normal;
+}
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown p {
+  margin: 0.5em 0;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  margin: 0.75em 0 0.4em;
+  line-height: 1.3;
+}
+
+.markdown ul,
+.markdown ol {
+  padding-left: 1.4em;
+  margin: 0.5em 0;
+}
+
+.markdown code {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.9em;
+  background-color: var(--vscode-textCodeBlock-background);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+}
+
+.markdown pre {
+  background-color: var(--vscode-textCodeBlock-background);
+  padding: 10px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.markdown pre code {
+  background: none;
+  padding: 0;
+}
+
+.markdown blockquote {
+  margin: 0.5em 0;
+  padding: 0 0 0 0.8em;
+  border-left: 3px solid var(--vscode-textCodeBlock-background);
+  color: var(--vscode-descriptionForeground);
+}
+
+.markdown table {
+  border-collapse: collapse;
+  margin: 0.5em 0;
+}
+
+.markdown th,
+.markdown td {
+  border: 1px solid var(--vscode-editor-inactiveSelectionBackground);
+  padding: 4px 8px;
+}
+
+.markdown a {
+  color: var(--vscode-textLink-foreground);
+}
+
 .input-container {
   display: flex;
   gap: 5px;
+  flex-shrink: 0;
 }
 
 .prompt {
