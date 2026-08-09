@@ -11,7 +11,7 @@ fs.copyFileSync(path.join(root, "src", "media", "main.css"), path.join(root, "di
 
 const options = {
   entryPoints: [path.join(root, "src", "extension.ts")],
-  outfile: path.join(root, "dist", "extension.js"),
+  outfile: path.join(root, "dist", "extension.cjs"),
   bundle: true,
   format: "cjs",
   platform: "node",

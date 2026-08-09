@@ -22,7 +22,7 @@
     "onCommand:mkuucode.explain",
     "onCommand:mkuucode.fix"
   ],
-  "main": "./dist/extension.js",
+  "main": "./dist/extension.cjs",
   "license": "MIT",
   "repository": {
     "type": "git",

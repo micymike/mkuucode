@@ -6,7 +6,7 @@ tsconfig.json
 .vscode/**
 .gitignore
 package-lock.json
-dist/extension.js.map
+dist/extension.cjs.map
 **/*.map
 webpack.config.js
 esbuild.config.js

@@ -34,7 +34,7 @@ bun install
 
 # 2. build the extension (bundles the SDK with esbuild)
 cd packages/mkuucode-vscode
-bun run build          # -> dist/extension.js (VS Code entrypoint)
+bun run build          # -> dist/extension.cjs (VS Code entrypoint)
 
 # 3. Launch in VS Code
 ```
@@ -93,7 +93,7 @@ message (optionally followed by scoped text) triggers the corresponding workflow
 ## Verification
 
 From `packages/mkuucode-vscode`:
-- `bun run build` — bundles the SDK + extension into `dist/extension.js`.
+- `bun run build` — bundles the SDK + extension into `dist/extension.cjs`.
 - `bun run typecheck` — `tsc --noEmit` (exit 0).
 
 ## What's intentionally NOT done yet
