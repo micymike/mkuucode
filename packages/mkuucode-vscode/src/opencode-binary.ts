@@ -100,15 +100,25 @@ function writeFile(path: string, data: Buffer): Promise<void> {
 }
 
 async function findOnPath(): Promise<string | undefined> {
-  const name = process.platform === "win32" ? "opencode.exe" : "opencode"
   const pathVar = process.env.PATH ?? ""
-  const exts = process.platform === "win32" ? [".exe", ".cmd", ".bat"] : [""]
+  const separator = process.platform === "win32" ? ";" : ":"
+  const exeName = "opencode.exe"
+  const binName = "opencode"
 
-  const dirs = pathVar.split(";").filter(Boolean)
+  const dirs = pathVar.split(separator).filter(Boolean)
   for (const dir of dirs) {
-    for (const ext of exts) {
-      const candidate = join(dir, `${name}${ext}`)
-      if (existsSync(candidate)) return candidate
+    // Real binary, e.g. /usr/local/bin/opencode.
+    const real = join(dir, binName)
+    if (process.platform !== "win32" && existsSync(real)) return real
+
+    const direct = join(dir, exeName)
+    if (existsSync(direct)) return direct
+
+    // npm global shims (opencode.cmd / opencode.ps1) resolve to a real binary
+    // under node_modules/opencode-ai/bin. Follow the shim instead of spawning it.
+    if (process.platform === "win32" && existsSync(join(dir, "opencode.cmd"))) {
+      const viaNpm = join(dir, "node_modules", "opencode-ai", "bin", exeName)
+      if (existsSync(viaNpm)) return viaNpm
     }
   }
   return undefined
