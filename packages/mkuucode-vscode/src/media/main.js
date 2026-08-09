@@ -6,6 +6,8 @@ const promptArea = document.getElementById("prompt") as HTMLTextAreaElement
 const sendBtn = document.getElementById("send-btn") as HTMLButtonElement
 const statusDiv = document.getElementById("status")!
 
+vscode.postMessage({ type: "ready" })
+
 function postPrompt(text: string) {
   if (!text) return
   vscode.postMessage({ type: "sendPrompt", text })
@@ -57,4 +59,8 @@ window.addEventListener("message", (event) => {
       break
     }
   }
+})
+
+window.addEventListener("error", (event) => {
+  statusDiv.textContent = "Error: " + (event.message || "unknown")
 })

@@ -9,6 +9,7 @@ interface ChatMessage {
 
 let backend: MkuuCodeBackend | undefined
 let chatHistory: ChatMessage[] = []
+const log = vscode.window.createOutputChannel("MkuuCode")
 
 export function activate(context: vscode.ExtensionContext): void {
   const provider = new MkuuCodeChatProvider(context.extensionUri, context.globalStorageUri.fsPath)
@@ -68,9 +69,14 @@ class MkuuCodeChatProvider implements vscode.WebviewViewProvider {
     webviewView.webview.html = this.html(webviewView.webview)
 
     webviewView.webview.onDidReceiveMessage((data) => {
+      log.appendLine(`webview message: ${JSON.stringify(data)}`)
       switch (data.type) {
         case "sendPrompt": {
           void this.handlePrompt(data.text as string)
+          break
+        }
+        case "ready": {
+          log.appendLine("webview reported ready")
           break
         }
       }
