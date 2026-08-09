@@ -98,18 +98,32 @@ class MkuuCodeChatProvider implements vscode.WebviewViewProvider {
     view.webview.postMessage({ type: "setLoading", value: true })
 
     try {
+      let streamed = false
       if (!backend) {
-        backend = new MkuuCodeBackend(directoryForWorkspace(), this.storageDir, (status) => {
-          view.webview.postMessage({ type: "addActivity", content: status })
-        })
+        backend = new MkuuCodeBackend(
+          directoryForWorkspace(),
+          this.storageDir,
+          (status) => {
+            view.webview.postMessage({ type: "addActivity", content: status })
+          },
+          (event) => {
+            if (event.type === "thinking" || event.type === "text") streamed = true
+            view.webview.postMessage({ type: "stream", data: event })
+          },
+        )
       }
       const { reply, activity } = await backend.send(rendered)
 
-      for (const line of activity) {
-        view.webview.postMessage({ type: "addActivity", content: line })
+      if (streamed) {
+        // The streamed bubble already shows thinking, text, and tool activity.
+        view.webview.postMessage({ type: "stream", data: { type: "done" } })
+      } else {
+        for (const line of activity) {
+          view.webview.postMessage({ type: "addActivity", content: line })
+        }
+        view.webview.postMessage({ type: "addMessage", role: "assistant", content: reply })
       }
       chatHistory.push({ role: "assistant", content: reply })
-      view.webview.postMessage({ type: "addMessage", role: "assistant", content: reply })
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error)
       view.webview.postMessage({

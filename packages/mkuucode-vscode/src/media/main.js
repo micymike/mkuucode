@@ -41,6 +41,47 @@ function appendActivity(content) {
   chatDiv.scrollTop = chatDiv.scrollHeight
 }
 
+let streamBubble = null
+let streamThinking = null
+let streamBody = null
+
+function ensureStreamBubble() {
+  if (streamBubble) return
+  streamBubble = document.createElement("div")
+  streamBubble.className = "message assistant"
+  streamThinking = document.createElement("div")
+  streamThinking.className = "thinking"
+  streamThinking.hidden = true
+  streamBody = document.createElement("div")
+  streamBody.className = "message-content"
+  streamBubble.appendChild(streamThinking)
+  streamBubble.appendChild(streamBody)
+  chatDiv.appendChild(streamBubble)
+  scrollToBottom()
+}
+
+function scrollToBottom() {
+  chatDiv.scrollTop = chatDiv.scrollHeight
+}
+
+function onStreamEvent(message) {
+  if (message.type === "thinking") {
+    ensureStreamBubble()
+    streamThinking.hidden = false
+    streamThinking.textContent = message.content
+  } else if (message.type === "text") {
+    ensureStreamBubble()
+    streamBody.textContent = message.content
+  } else if (message.type === "tool") {
+    appendActivity(message.content)
+  } else if (message.type === "done") {
+    streamBubble = null
+    streamThinking = null
+    streamBody = null
+  }
+  scrollToBottom()
+}
+
 window.addEventListener("message", (event) => {
   const message = event.data
   switch (message.type) {
@@ -50,6 +91,10 @@ window.addEventListener("message", (event) => {
     }
     case "addActivity": {
       appendActivity(message.content)
+      break
+    }
+    case "stream": {
+      onStreamEvent(message.data)
       break
     }
     case "setLoading": {

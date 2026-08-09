@@ -11,6 +11,11 @@ export interface PromptResult {
   activity: string[]
 }
 
+export interface StreamEvent {
+  type: "thinking" | "text" | "tool"
+  content: string
+}
+
 export class MkuuCodeBackend {
   private proc?: ChildProcess
   private client?: OpencodeClient
@@ -20,7 +25,12 @@ export class MkuuCodeBackend {
   private sessionManager = new SessionManager()
   private sendQueue: Promise<void> = Promise.resolve()
 
-  constructor(directory: string, storeDir: string, private readonly onStatus?: (status: string) => void) {
+  constructor(
+    directory: string,
+    storeDir: string,
+    private readonly onStatus?: (status: string) => void,
+    private readonly onStream?: (event: StreamEvent) => void,
+  ) {
     this.directory = directory
     this.storeDir = storeDir
   }
@@ -40,14 +50,37 @@ export class MkuuCodeBackend {
       if (!client) throw new Error("MkuuCode backend not connected")
 
       const sessionID = await this.sessionManager.getOrCreate(client, this.directory)
-      const prompt = await client.session.prompt({
-        path: { id: sessionID },
+
+      const controller = new AbortController()
+      const sub = await client.event.subscribe({
         query: { directory: this.directory },
-        body: {
-          agent: AGENT_ID,
-          parts: [{ type: "text", text: raw }],
-        },
-      })
+        signal: controller.signal,
+      } as never)
+
+      const pump = (async () => {
+        try {
+          for await (const event of sub.stream) {
+            this.forwardStreamEvent(event, sessionID)
+          }
+        } catch {
+          // Subscription closed when the prompt finishes (intentional abort) or errors.
+        }
+      })()
+
+      let prompt
+      try {
+        prompt = await client.session.prompt({
+          path: { id: sessionID },
+          query: { directory: this.directory },
+          body: {
+            agent: AGENT_ID,
+            parts: [{ type: "text", text: raw }],
+          },
+        })
+      } finally {
+        controller.abort()
+        await pump
+      }
 
       if (prompt.error || !prompt.data) throw new Error(errorText(prompt.error))
 
@@ -59,6 +92,25 @@ export class MkuuCodeBackend {
     const next = previous.then(run)
     this.sendQueue = next.then(() => undefined, () => undefined)
     return await next
+  }
+
+  private forwardStreamEvent(event: unknown, sessionID: string): void {
+    const onStream = this.onStream
+    if (!onStream) return
+
+    if (typeof event !== "object" || event === null) return
+    const evt = event as { type?: string; properties?: { part?: Part; sessionID?: string } }
+    if (evt.type !== "message.part.updated") return
+    const part = evt.properties?.part
+    if (!part || part.sessionID !== sessionID) return
+
+    if (part.type === "reasoning") {
+      onStream({ type: "thinking", content: part.text })
+    } else if (part.type === "text") {
+      onStream({ type: "text", content: part.text })
+    } else if (part.type === "tool" && part.state?.status === "completed") {
+      onStream({ type: "tool", content: `tool: ${part.tool} — ${part.state.title}` })
+    }
   }
 
   private ensureStarted(): Promise<void> {
