@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { Component, useCallback, useEffect, useRef, useState } from "react"
+import type { ReactNode } from "react"
 import { createRoot } from "react-dom/client"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
@@ -6,6 +7,29 @@ import hljs from "highlight.js"
 
 declare function acquireVsCodeApi(): { postMessage: (message: unknown) => void }
 const vscode = acquireVsCodeApi()
+
+// ── Error boundary — catches render crashes and shows them instead of blank ──
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props)
+    this.state = { error: null }
+  }
+  static getDerivedStateFromError(err: unknown) {
+    return { error: err instanceof Error ? err.message : String(err) }
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 16, color: "var(--vscode-errorForeground, #f14c4c)", fontFamily: "monospace", fontSize: 12 }}>
+          <strong>MkuuCode render error:</strong>
+          <pre style={{ whiteSpace: "pre-wrap", marginTop: 8 }}>{this.state.error}</pre>
+          <button style={{ marginTop: 8, cursor: "pointer" }} onClick={() => this.setState({ error: null })}>Retry</button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 type Role = "user" | "assistant"
 
@@ -426,7 +450,7 @@ function App() {
         <div className="header-right">
           <button className="btn small" onClick={() => { setShowDiff(false); setShowHistory(v => !v); if (!showHistory) vscode.postMessage({ type: "loadHistory" }) }} title="Chat history">☰</button>
           <button className="btn small" onClick={() => { setAutoScroll(v => !v) }} title={autoScroll ? "Unpin scroll" : "Pin scroll"} style={{ opacity: autoScroll ? 1 : 0.5 }}>📌</button>
-          <button className="btn small" onClick={() => vscode.postMessage({ type: "newSession" })} title="New session">＋</button>
+          <button className="btn small" onClick={() => vscode.postMessage({ type: "newSession" })} title="New conversation">＋</button>
         </div>
       </div>
 
@@ -538,4 +562,8 @@ function App() {
   )
 }
 
-createRoot(document.getElementById("root")!).render(<App />)
+createRoot(document.getElementById("root")!).render(
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
+)

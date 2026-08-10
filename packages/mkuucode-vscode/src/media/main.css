@@ -268,6 +268,21 @@ body {
   border-color: var(--vscode-focusBorder);
 }
 
+.new-conv-btn {
+  margin-top: 14px;
+  background-color: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+
+.new-conv-btn:hover {
+  background-color: var(--vscode-button-hoverBackground);
+}
+
 /* ---- messages ---- */
 
 .message {
