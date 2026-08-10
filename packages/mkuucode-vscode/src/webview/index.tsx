@@ -301,8 +301,8 @@ function App() {
   const loadingRef = useRef(false)
   const queueRef = useRef<string[]>([])
 
-  const commitStream = useCallback(() => {
-    const full = textRef.current
+  const commitStream = useCallback((fallbackText?: string) => {
+    const full = textRef.current || fallbackText || ""
     if (full.trim()) {
       nextID.current += 1
       setMessages(prev => [...prev, { id: nextID.current, role: "assistant", content: full }])
@@ -327,8 +327,14 @@ function App() {
       const msg = event.data
       switch (msg.type) {
         case "addMessage":
-          nextID.current += 1
-          setMessages(prev => [...prev, { id: nextID.current, role: msg.role, content: msg.content }])
+          if (msg.role === "assistant") {
+            // Route assistant messages through commitStream so they never
+            // double-render with an in-progress stream bubble.
+            commitStream(msg.content as string)
+          } else {
+            nextID.current += 1
+            setMessages(prev => [...prev, { id: nextID.current, role: msg.role, content: msg.content }])
+          }
           break
         case "addActivity":
           setTools(prev => [...prev, { type: "tool", content: msg.content, callID: String(nextID.current), tool: "activity", title: msg.content, status: "completed" }])
@@ -337,7 +343,12 @@ function App() {
           loadingRef.current = msg.value
           setLoading(msg.value)
           setStatus(msg.value ? "Running agent…" : "Idle")
-          if (!msg.value) { if (streamStarted.current) commitStream(); processQueue() }
+          if (!msg.value) {
+            // Only force-commit if a stream started but "done" never arrived
+            // (e.g. stop button pressed). Normal completions send "done" first.
+            if (streamStarted.current) commitStream(undefined)
+            processQueue()
+          }
           break
         case "status": setStatus(msg.text); break
         case "theme": setTheme(msg.kind === "dark" ? "dark" : "light"); break
@@ -369,7 +380,7 @@ function App() {
           break
         case "stream": {
           const data = msg.data as StreamData
-          if (data.type === "done") { commitStream() }
+          if (data.type === "done") { commitStream(undefined) }
           else if (data.type === "thinking") { streamStarted.current = true; thinkingRef.current = data.content; setThinking(data.content); setStreaming(true) }
           else if (data.type === "text") { streamStarted.current = true; textRef.current = data.content; setText(data.content); setStreaming(true) }
           else if (data.type === "tool") { toolsRef.current = [...toolsRef.current.filter(t => t.callID !== data.callID), data]; setTools(toolsRef.current); setStreaming(true) }
