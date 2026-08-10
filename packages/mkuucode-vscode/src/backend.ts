@@ -9,6 +9,7 @@ import { SessionManager } from "./session-manager.js"
 export interface PromptResult {
   reply: string
   activity: string[]
+  usage?: { inputTokens: number; outputTokens: number }
 }
 
 export interface ToolStreamEvent {
@@ -25,6 +26,12 @@ export type StreamEvent =
   | { type: "text"; content: string }
   | ToolStreamEvent
 
+export interface ModelInfo {
+  id: string
+  name: string
+  provider: string
+}
+
 export class MkuuCodeBackend {
   private proc?: ChildProcess
   private client?: OpencodeClient
@@ -33,11 +40,6 @@ export class MkuuCodeBackend {
   private ready: Promise<void> | undefined
   private sessionManager = new SessionManager()
   private sendQueue: Promise<void> = Promise.resolve()
-
-  // A single long-lived yet non-retried event subscription drives all
-  // streaming. Opening and closing one SSE stream per prompt leaks sockets and
-  // eventually makes the server refuse new connections ("fetch failed"), so we
-  // start it once at bootstrap and filter by the active session.
   private streamStream?: AsyncIterable<unknown>
   private streamAbort?: AbortController
   private activeSessionID?: string
@@ -102,13 +104,101 @@ export class MkuuCodeBackend {
       if (prompt.error || !prompt.data) throw new Error(errorText(prompt.error))
 
       const parts: Part[] = (prompt.data as { parts: Part[] }).parts
-      return { reply: collectText(parts), activity: collectActivity(parts) }
+      const usage = collectUsage(parts)
+      return { reply: collectText(parts), activity: collectActivity(parts), usage }
     }
 
     const previous = this.sendQueue
     const next = previous.then(run)
     this.sendQueue = next.then(() => undefined, () => undefined)
     return await next
+  }
+
+  async getModels(): Promise<ModelInfo[]> {
+    await this.ensureStarted()
+    const client = this.client
+    if (!client) return []
+    try {
+      const res = await client.provider.list({ query: { directory: this.directory } })
+      if (res.error || !res.data) return []
+      const data = res.data as { all: Array<{ id: string; name: string; models: Record<string, { id: string; name: string }> }> }
+      const models: ModelInfo[] = []
+      for (const p of data.all) {
+        for (const m of Object.values(p.models ?? {})) {
+          models.push({ id: `${p.id}/${m.id}`, name: m.name || m.id, provider: p.name || p.id })
+        }
+      }
+      return models
+    } catch {
+      return []
+    }
+  }
+
+  async getCurrentModel(): Promise<string | undefined> {
+    await this.ensureStarted()
+    const client = this.client
+    if (!client) return undefined
+    try {
+      const res = await client.config.get({ query: { directory: this.directory } })
+      if (res.error || !res.data) return undefined
+      const cfg = res.data as { model?: string }
+      return cfg.model
+    } catch {
+      return undefined
+    }
+  }
+
+  async setModel(modelId: string): Promise<void> {
+    await this.ensureStarted()
+    const client = this.client
+    if (!client) return
+    await client.config.update({
+      query: { directory: this.directory },
+      body: { model: modelId } as never,
+    })
+  }
+
+  async getSessionDiff(sessionID: string): Promise<string> {
+    await this.ensureStarted()
+    const client = this.client
+    if (!client) return ""
+    try {
+      const res = await client.session.diff({
+        path: { id: sessionID },
+        query: { directory: this.directory },
+      })
+      if (res.error || !res.data) return ""
+      // API returns Array<FileDiff> — render as a unified-style text diff
+      const diffs = res.data as Array<{ file: string; before: string; after: string; additions: number; deletions: number }>
+      return diffs
+        .map((d) => [
+          `diff --mkuu a/${d.file} b/${d.file}`,
+          `--- a/${d.file}`,
+          `+++ b/${d.file}`,
+          ...d.before.split("\n").map((l) => `-${l}`),
+          ...d.after.split("\n").map((l) => `+${l}`),
+        ].join("\n"))
+        .join("\n")
+    } catch {
+      return ""
+    }
+  }
+
+  async readFile(filePath: string): Promise<string> {
+    await this.ensureStarted()
+    const client = this.client
+    if (!client) return ""
+    try {
+      const res = await client.file.read({
+        query: { path: filePath, directory: this.directory },
+      })
+      if (res.error || !res.data) return ""
+      // API returns FileContent: { type, content, ... }
+      const data = res.data as { content: string }
+      return data.content ?? ""
+    } catch {
+      return ""
+    }
   }
 
   private forwardStreamEvent(event: unknown): void {
@@ -149,7 +239,6 @@ export class MkuuCodeBackend {
         throw error
       })
     }
-
     return this.ready
   }
 
@@ -160,11 +249,22 @@ export class MkuuCodeBackend {
 
     const abort = new AbortController()
     this.streamAbort = abort
-    const sub = await this.client.event.subscribe({
-      query: { directory: this.directory },
-      signal: abort.signal as never,
-      sseMaxRetryAttempts: 0,
-    } as never)
+
+    let sub: Awaited<ReturnType<typeof this.client.event.subscribe>> | undefined
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        sub = await this.client.event.subscribe({
+          query: { directory: this.directory },
+          signal: abort.signal as never,
+          sseMaxRetryAttempts: 0,
+        } as never)
+        break
+      } catch (err) {
+        if (attempt === 4) throw err
+        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)))
+      }
+    }
+    if (!sub) throw new Error("Failed to subscribe to event stream")
     this.streamStream = sub.stream
     void this.drainStream(sub.stream)
   }
@@ -175,7 +275,7 @@ export class MkuuCodeBackend {
         this.forwardStreamEvent(event)
       }
     } catch {
-      // Stream ended: either the backend was disposed or the subscription closed.
+      // Stream ended
     }
   }
 }
@@ -197,6 +297,16 @@ function collectActivity(parts: Part[]): string[] {
     }
   }
   return lines
+}
+
+function collectUsage(parts: Part[]): { inputTokens: number; outputTokens: number } | undefined {
+  for (const part of parts) {
+    const p = part as { type: string; usage?: { inputTokens?: number; outputTokens?: number } }
+    if (p.usage) {
+      return { inputTokens: p.usage.inputTokens ?? 0, outputTokens: p.usage.outputTokens ?? 0 }
+    }
+  }
+  return undefined
 }
 
 function errorText(err: unknown): string {

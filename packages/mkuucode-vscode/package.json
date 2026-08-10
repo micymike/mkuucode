@@ -2,7 +2,7 @@
   "name": "mkuucode-vscode",
   "displayName": "MkuuCode",
   "description": "VS Code integration for MkuuCode built on OpenCode agent engine.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "MichaelMoses",
   "icon": "resources/icon.png",
   "type": "module",
@@ -20,7 +20,11 @@
     "onCommand:mkuucode.review",
     "onCommand:mkuucode.test",
     "onCommand:mkuucode.explain",
-    "onCommand:mkuucode.fix"
+    "onCommand:mkuucode.fix",
+    "onCommand:mkuucode.explainSelection",
+    "onCommand:mkuucode.fixSelection",
+    "onCommand:mkuucode.focusInput",
+    "onCommand:mkuucode.exportChat"
   ],
   "main": "./dist/extension.cjs",
   "license": "MIT",
@@ -33,31 +37,38 @@
   "qna": "markdown",
   "contributes": {
     "commands": [
+      { "command": "mkuucode.open", "title": "MkuuCode: Open" },
+      { "command": "mkuucode.plan", "title": "MkuuCode: /plan" },
+      { "command": "mkuucode.review", "title": "MkuuCode: /review" },
+      { "command": "mkuucode.test", "title": "MkuuCode: /test" },
+      { "command": "mkuucode.explain", "title": "MkuuCode: /explain" },
+      { "command": "mkuucode.fix", "title": "MkuuCode: /fix" },
+      { "command": "mkuucode.explainSelection", "title": "MkuuCode: Explain Selection" },
+      { "command": "mkuucode.fixSelection", "title": "MkuuCode: Fix Selection" },
+      { "command": "mkuucode.focusInput", "title": "MkuuCode: Focus Input" },
+      { "command": "mkuucode.exportChat", "title": "MkuuCode: Export Chat" }
+    ],
+    "keybindings": [
       {
-        "command": "mkuucode.open",
-        "title": "MkuuCode: Open"
-      },
-      {
-        "command": "mkuucode.plan",
-        "title": "MkuuCode: /plan"
-      },
-      {
-        "command": "mkuucode.review",
-        "title": "MkuuCode: /review"
-      },
-      {
-        "command": "mkuucode.test",
-        "title": "MkuuCode: /test"
-      },
-      {
-        "command": "mkuucode.explain",
-        "title": "MkuuCode: /explain"
-      },
-      {
-        "command": "mkuucode.fix",
-        "title": "MkuuCode: /fix"
+        "command": "mkuucode.focusInput",
+        "key": "ctrl+shift+m",
+        "mac": "cmd+shift+m"
       }
     ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "mkuucode.explainSelection",
+          "when": "editorHasSelection",
+          "group": "mkuucode@1"
+        },
+        {
+          "command": "mkuucode.fixSelection",
+          "when": "editorHasSelection",
+          "group": "mkuucode@2"
+        }
+      ]
+    },
     "viewsContainers": {
       "activitybar": [
         {
