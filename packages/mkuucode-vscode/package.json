@@ -2,7 +2,7 @@
   "name": "mkuucode-vscode",
   "displayName": "MkuuCode",
   "description": "VS Code integration for MkuuCode built on OpenCode agent engine.",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "MichaelMoses",
   "icon": "resources/icon.png",
   "type": "module",

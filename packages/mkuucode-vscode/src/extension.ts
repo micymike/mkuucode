@@ -389,13 +389,19 @@ class MkuuCodeChatProvider implements vscode.WebviewViewProvider {
       }
 
       if (this.stopped) return
+
       if (streamed) {
+        // Stream events already sent incrementally — just commit the stream
         view.webview.postMessage({ type: "stream", data: { type: "done" } })
       } else {
+        // No stream events fired (non-streaming model or fast response)
+        // Show activity lines then the final reply
         for (const line of activity) {
           view.webview.postMessage({ type: "addActivity", content: line })
         }
-        view.webview.postMessage({ type: "addMessage", role: "assistant", content: reply })
+        if (reply.trim()) {
+          view.webview.postMessage({ type: "addMessage", role: "assistant", content: reply })
+        }
       }
       chatHistory.push({ role: "assistant", content: reply })
       this.saveCurrentSession()
